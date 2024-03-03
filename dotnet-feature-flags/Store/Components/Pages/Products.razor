@@ -9,11 +9,23 @@
 @using Microsoft.Extensions.Configuration
 @inject IConfiguration Configuration
 
+@* //added this w/tutorial *@
+@using Microsoft.FeatureManagement
+@inject IFeatureManager FeatureManager
+
 <PageTitle>Products</PageTitle>
 
 <h1>Products</h1>
 
 <p>Here are some of our amazing outdoor products that you can purchase.</p>
+
+<!-- Add a sales alert for customers -->
+@if (saleOn)
+{
+<div class="alert alert-success" role="alert">
+  Our sale is now on.
+</div>
+}
 
 @if (products == null)
 {
@@ -40,7 +52,13 @@ else
                     <td><img height="80" width="80" src="@imagePrefix/@product.ImageUrl" /></td>
                     <td>@product.Name</td>
                     <td>@product.Description</td>
-                    <td>@product.Price </td>
+                    <td>
+                    @if (saleOn) {
+                        <strike>@(product.Price)</strike><br>
+                        @((product.Price * discountPercentage).ToString("#.##"))
+                    } else {
+                        @product.Price
+                    }</td>
                 </tr>
             }
         </tbody>
@@ -50,13 +68,20 @@ else
 @code {
     private List<Product>? products;
     private string imagePrefix = string.Empty;
+    private bool saleOn = false; //added for feature flag
+    private decimal discountPercentage;//added for feature flag
 
     protected override async Task OnInitializedAsync()
     {
+        saleOn = await FeatureManager.IsEnabledAsync("SeasonalDiscount");
+        if (saleOn) {
+            discountPercentage = Convert.ToDecimal(Configuration.GetSection("eShopLite__Store__DiscountPercent").Value);
+        }
         // Simulate asynchronous loading to demonstrate streaming rendering
         await Task.Delay(500);
         imagePrefix = Configuration["ImagePrefix"];
         products = await ProductService.GetProducts();
+
     }
 
 }
